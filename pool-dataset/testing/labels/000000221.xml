@@ -1,0 +1,26 @@
+<annotation>
+	<folder>images</folder>
+	<filename>000000221.jpg</filename>
+	<path>C:\Users\cecilia.coelho\Desktop\Dissertação\code\pooldetection\pooldetection\dataset\test_data_images\test_data_images\images\000000221.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>224</width>
+		<height>224</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>pool</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>170</xmin>
+			<ymin>160</ymin>
+			<xmax>193</xmax>
+			<ymax>206</ymax>
+		</bndbox>
+	</object>
+</annotation>
