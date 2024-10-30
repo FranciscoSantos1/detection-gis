@@ -1,0 +1,6 @@
+path: .
+train: training/images
+val: testing/images
+
+nc: 1 # number of classes
+names: ['pool'] # class names
