@@ -3,7 +3,7 @@ import json
 from ultralytics import YOLO
 
 
-model = YOLO("best.pt")
+model = YOLO("/home/franciscosantos/workspace/IPVC/PROJECT_III/pool-detection-gis/pool-best.pt")
 
 def run_detection(image_path):
     results = model.predict(image_path)
