@@ -2,8 +2,8 @@ import sys
 import json
 from ultralytics import YOLO
 
-
-model = YOLO("/home/franciscosantos/workspace/IPVC/PROJECT_III/pool-detection-gis/pool-best.pt")
+# model = YOLO("/home/franciscosantos/workspace/IPVC/PROJECT_III/pool-detection-gis/pool-best.pt")
+model = YOLO("/Users/joqui/OneDrive/Desktop/IPVC/3ano/1semestre/PROJETO_3/pool-detection-gis/pool-best.pt")
 
 def run_detection(image_path):
     results = model.predict(image_path)
@@ -20,6 +20,10 @@ def run_detection(image_path):
     return detections
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python run-pool-detection.py <image_path>")
+        sys.exit(1)
+
     image_path = sys.argv[1]
     detections = run_detection(image_path)
     print(json.dumps(detections))

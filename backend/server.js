@@ -1,10 +1,11 @@
 const express = require('express');
-const multer = require('multer');
 const cors = require('cors');
+const multer = require('multer');
 const path = require('path');
-const {spawn} = require('child_process');
+const { spawn } = require('child_process');
 
 const app = express();
+app.use(cors()); 
 
 // Configure multer to save files with their original extension
 const storage = multer.diskStorage({
@@ -18,40 +19,67 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage });
-const port = 3000;
-
-app.use(cors());
-app.use(express.json());
-
+const upload = multer({ storage: storage });
 
 app.post('/detect', upload.single('image'), (req, res) => {
     const file_path = path.join(__dirname, req.file.path);
+    console.log(`Received file: ${file_path}`);
 
-    const pythonDetectScript  = spawn('python3',
-        ['../run-pool-detection.py',
-        file_path]);
+    const runDetectionScript = (scriptPath, callback) => {
+        const pythonScript = spawn('python', [scriptPath, file_path]); 
 
-    let output = "";
+        let output = "";
+        let errorOutput = "";
 
-    pythonDetectScript.stdout.on('data', (data) => {
+        pythonScript.stdout.on('data', (data) => {
             output += data.toString();
             console.log(`stdout: ${data}`);
-    });
+        });
 
-    pythonDetectScript.stderr.on('data', (data) => {
-        console.error(data.toString());
-    });
+        pythonScript.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+            console.error(`stderr: ${data.toString()}`);
+        });
 
-    pythonDetectScript.on('close', (code) => {
-        if (code === 0) {
-            res.status(200).json({output: output});
-        } else {
-            res.status(500).json({error: 'Something went wrong'});
+        pythonScript.on('close', (code) => {
+            if (code === 0) {
+                console.log(`Final stdout: ${output}`); // Add this log for debugging
+                try {
+                    // Find the JSON output in the stdout
+                    const jsonStartIndex = output.indexOf('[');
+                    const jsonEndIndex = output.lastIndexOf(']') + 1;
+                    const jsonString = output.substring(jsonStartIndex, jsonEndIndex);
+                    const jsonOutput = JSON.parse(jsonString);
+                    callback(null, jsonOutput);
+                } catch (err) {
+                    console.error('Failed to parse JSON output:', output); // Add this log for debugging
+                    callback(new Error('Failed to parse JSON output'));
+                }
+            } else {
+                callback(new Error(`Script exited with code ${code}: ${errorOutput}`));
+            }
+        });
+    };
+
+    runDetectionScript('../run-pool-detection.py', (err, poolOutput) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
         }
+
+        runDetectionScript('../run-solar-panel-detection.py', (err, solarOutput) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+
+            res.status(200).json({
+                poolDetection: poolOutput || [],
+                solarPanelDetection: solarOutput || []
+            });
+        });
     });
 });
 
-app.listen(port, () => {
-    console.log(`Server running on port https://localhost:${port}`);
+const PORT = process.env.PORT || 5000; 
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
