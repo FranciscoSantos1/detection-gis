@@ -2,7 +2,7 @@ import React, { useState} from 'react';
 
 const MAPBOX_ACCESS_TOKEN = "pk.eyJ1IjoiZnJhbmNpc2Nvc2FudG9zMDUiLCJhIjoiY20yZW9lNHRiMDBqZjJrcXk0bDEzNHZxNCJ9.thoOGfrXKnbjSUaREZ-OSg";
 
-const Navbar = ({ onSearch }) => {
+const Navbar = ({ onSearch, onDetect }) => {
     const [searchInput, setSearchInput] = useState("");
   
     const handleSearch = async (e) => {
@@ -63,6 +63,20 @@ const Navbar = ({ onSearch }) => {
             Search
           </button>
         </form>
+          <button
+          type="button"
+          onClick={onDetect}
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "red",
+            color: "#fff",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+          }}
+        >
+          Detect
+        </button>
       </nav>
     );
   };

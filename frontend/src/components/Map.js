@@ -16,9 +16,9 @@ const MapComponent = ({ viewState, setViewState, markers }) => {
       {markers.map((marker, index) => (
         <Marker
           key={index}
-          longitude={marker.longitude}
           latitude={marker.latitude}
-          color="red"
+          longitude={marker.longitude}
+          color="green"
         />
       )
 
