@@ -3,6 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const { spawn } = require('child_process');
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
@@ -14,38 +15,49 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname); // Get the file extension
-        cb(null, file.fieldname + '-' + uniqueSuffix + ext); // Save with extension
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
+
+const upload = multer({ storage: storage });
 
 const { Pool } = require('pg');
 
 const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'pool-panel-detection',
-    password: 'is',
-    port: 5433, // Porta padrão do PostgreSQL
+    user: process.env.DATABASE_USER,
+    host: process.env.DATABASE_HOST,
+    database: process.env.DATABASE_NAME,
+    password: process.env.DATABASE_PASSWORD,
+    port: process.env.DATABASE_PORT,
 });
 
-const insertDetection = async (detection) => {
-    const createTableQuery = `
+const createDetectionsTable = async () => {
+    const query = `
         CREATE TABLE IF NOT EXISTS detections (
-        id SERIAL PRIMARY KEY,
-        class INTEGER NOT NULL,
-        name VARCHAR(50) NOT NULL,
-        bbox_xmin FLOAT NOT NULL,
-        bbox_ymin FLOAT NOT NULL,
-        bbox_xmax FLOAT NOT NULL,
-        bbox_ymax FLOAT NOT NULL,
-        latitude FLOAT NOT NULL,
-        longitude FLOAT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
-        );
+            id SERIAL PRIMARY KEY,
+            class INTEGER NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            bbox_xmin FLOAT NOT NULL,
+            bbox_ymin FLOAT NOT NULL,
+            bbox_xmax FLOAT NOT NULL,
+            bbox_ymax FLOAT NOT NULL,
+            latitude FLOAT NOT NULL,
+            longitude FLOAT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     `;
 
+    try {
+        await pool.query(query);
+        console.log('Detections table created successfully.');
+    } catch (error) {
+        console.error('Error creating detections table:', error.message);
+    }
+};
 
+createDetectionsTable();
+
+const insertDetection = async (detection) => {
     const query = `
         INSERT INTO detections (class, name, bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, latitude, longitude)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -63,28 +75,27 @@ const insertDetection = async (detection) => {
     ];
 
     try {
-        console.log('Creating table if not exists...');
-        await pool.query(createTableQuery); // Cria a tabela, se necessário
-
         console.log('Inserting detection:', values);
-        await pool.query(query, values); // Insere os dados
+        await pool.query(query, values); // Insert the data
         console.log('Detection inserted successfully.');
     } catch (error) {
         console.error('Error inserting detection:', error.message);
     }
 };
 
-const upload = multer({ storage: storage }); // Adiciona esta linha para definir 'upload'
-
 app.post('/detect', upload.single('image'), async (req, res) => {
     const file_path = path.join(__dirname, req.file.path);
     const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+        return res.status(400).json({ error: 'Latitude and longitude are required.' });
+    }
 
     console.log(`Received file: ${file_path}`);
     console.log(`Latitude: ${latitude}, Longitude: ${longitude}`);
 
     const runDetectionScript = (scriptPath, callback) => {
-        const pythonScript = spawn('python', [scriptPath, file_path, latitude, longitude]);
+        const pythonScript = spawn('python3', [scriptPath, file_path, latitude, longitude]);
 
         let output = "";
         let errorOutput = "";
@@ -99,10 +110,13 @@ app.post('/detect', upload.single('image'), async (req, res) => {
 
         pythonScript.on('close', async (code) => {
             console.log(`Python script exited with code ${code}`);
+            if (errorOutput) {
+                console.error('Python script error output:', errorOutput);
+            }
             try {
                 const jsonLines = output.split('\n').filter(line => {
                     try {
-                        JSON.parse(line); // Verifica se a linha é JSON válida
+                        JSON.parse(line); // Check if the line is valid JSON
                         return true;
                     } catch {
                         return false;
@@ -113,20 +127,14 @@ app.post('/detect', upload.single('image'), async (req, res) => {
                     throw new Error('No valid JSON found in the output');
                 }
 
-                const detections = JSON.parse(jsonLines[0]); // Pega o primeiro JSON válido
+                const detections = JSON.parse(jsonLines[0]); // Get the first valid JSON
                 callback(null, detections);
 
-                // Salvar detecções no banco de dados
+                // Save detections to the database
                 if (detections.detections && detections.detections.length > 0) {
                     console.log('Detections found, saving to database...');
                     for (const detection of detections.detections) {
-                        await insertDetection({
-                            class: detection.class,
-                            name: detection.class === 1 ? 'pool' : 'panel',
-                            bbox: detection.bbox,
-                            latitude,
-                            longitude,
-                        });
+                        await insertDetection(detection);
                     }
                 } else {
                     console.log('No detections found.');
@@ -138,7 +146,7 @@ app.post('/detect', upload.single('image'), async (req, res) => {
         });
     };
 
-    runDetectionScript('../run-solar-panel-and-pool-detection.py', (err, result) => {
+    runDetectionScript('./run-solar-panel-and-pool-detection.py', (err, result) => {
         if (err) {
             return res.status(500).send(err.message);
         }
@@ -159,7 +167,6 @@ app.get('/detections', async (req, res) => {
         res.status(500).send('Error fetching detections');
     }
 });
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
