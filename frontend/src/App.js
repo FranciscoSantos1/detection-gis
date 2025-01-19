@@ -13,6 +13,7 @@ const App = () => {
   });
   const [boundingBoxes, setBoundingBoxes] = useState([]);
   const [markers, setMarkers] = useState([]);
+  const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/satellite-v9");
 
   // Fetch detections from the backend
   const fetchDetections = async () => {
@@ -49,7 +50,7 @@ const App = () => {
     });
   };
 
-    const handleDetect = () => {
+  const handleDetect = () => {
     console.log('Starting detection process...');
     fetch(`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${viewState.longitude},${viewState.latitude},${viewState.zoom},0,0/800x600?access_token=${MAPBOX_ACCESS_TOKEN}`)
       .then(response => {
@@ -108,14 +109,19 @@ const App = () => {
       });
   };
 
+  const handleChangeMapStyle = (style) => {
+    setMapStyle(style);
+  };
+
   return (
     <div>
-      <Navbar onSearch={handleSearch} onDetect={handleDetect} />
+      <Navbar onSearch={handleSearch} onDetect={handleDetect} onChangeMapStyle={handleChangeMapStyle} />
       <MapComponent
         viewState={viewState}
         setViewState={setViewState}
         markers={markers}
         boundingBoxes={boundingBoxes}
+        mapStyle={mapStyle}
       />
     </div>
   );
