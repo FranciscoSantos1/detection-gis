@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import Map, { Marker, Source, Layer } from "react-map-gl";
+import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import Supercluster from "supercluster";
 import mapboxgl from "mapbox-gl";
+import Modal from 'react-modal';
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZnJhbmNpc2Nvc2FudG9zMDUiLCJhIjoiY20yZW9lNHRiMDBqZjJrcXk0bDEzNHZxNCJ9.thoOGfrXKnbjSUaREZ-OSg";
 
 const MapComponent = ({ viewState, setViewState, markers, mapStyle }) => {
   const mapRef = useRef();
   const [clusters, setClusters] = useState([]);
+  const [modalIsOpen, setModalIsOpen] = useState(false);
   const superclusterRef = useRef(
     new Supercluster({
       radius: 40,
@@ -45,6 +47,20 @@ const MapComponent = ({ viewState, setViewState, markers, mapStyle }) => {
     }
   }, [markers, updateClusters]);
 
+  const openModal = () => {
+    setModalIsOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalIsOpen(false);
+  };
+
+  const handleMapStyleChange = (style) => {
+    const map = mapRef.current.getMap();
+    map.setStyle(style);
+    closeModal();
+  };
+
   return (
     <div style={{ position: "relative" }}>
       <Map
@@ -56,6 +72,7 @@ const MapComponent = ({ viewState, setViewState, markers, mapStyle }) => {
         onMove={(evt) => setViewState(evt.viewState)}
         onLoad={updateClusters}
       >
+        <NavigationControl position="top-right" />
         <Source
           id="clusters"
           type="geojson"
@@ -126,6 +143,38 @@ const MapComponent = ({ viewState, setViewState, markers, mapStyle }) => {
           />
         ))}
       </Map>
+      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 1 }}>
+        <button onClick={openModal} style={{ display: "block", marginBottom: "5px", padding: "5px 10px", fontSize: "12px" }}>Change Map Style</button>
+      </div>
+      <Modal
+        isOpen={modalIsOpen}
+        onRequestClose={closeModal}
+        contentLabel="Map Style Modal"
+        style={{
+          content: {
+            top: '50%',
+            left: '50%',
+            right: 'auto',
+            bottom: 'auto',
+            marginRight: '-50%',
+            transform: 'translate(-50%, -50%)',
+            padding: '20px',
+            borderRadius: '10px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            backgroundColor: '#fff', // Normal background color
+            color: '#000', // Normal text color
+          },
+          overlay: {
+            backgroundColor: 'rgba(0, 0, 0, 0.75)', // Dark overlay background
+          },
+        }}
+      >
+        <h2>Choose Map Style</h2>
+        <button onClick={() => handleMapStyleChange("mapbox://styles/mapbox/satellite-v9")} style={{ display: "block", margin: "10px 0" }}>Satellite</button>
+        <button onClick={() => handleMapStyleChange("mapbox://styles/mapbox/streets-v12")} style={{ display: "block", margin: "10px 0" }}>Streets</button>
+        <button onClick={() => handleMapStyleChange("mapbox://styles/mapbox/dark-v11")} style={{ display: "block", margin: "10px 0" }}>Dark</button>
+        <button onClick={closeModal} style={{ display: "block", margin: "10px 0", backgroundColor: "#ccc" }}>Close</button>
+      </Modal>
     </div>
   );
 };

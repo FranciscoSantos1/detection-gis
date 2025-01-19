@@ -90,45 +90,6 @@ const Navbar = ({ onSearch, onDetect, onChangeMapStyle }) => {
       >
         Detect
       </button>
-      <button
-        type="button"
-        onClick={openModal}
-        style={{
-          padding: "0.5rem 1rem",
-          backgroundColor: "#007bff",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-          marginLeft: "1rem",
-        }}
-      >
-        Map Style
-      </button>
-      <Modal
-        isOpen={modalIsOpen}
-        onRequestClose={closeModal}
-        contentLabel="Map Style Modal"
-        style={{
-          content: {
-            top: '50%',
-            left: '50%',
-            right: 'auto',
-            bottom: 'auto',
-            marginRight: '-50%',
-            transform: 'translate(-50%, -50%)',
-            padding: '20px',
-            borderRadius: '10px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          },
-        }}
-      >
-        <h2>Choose Map Style</h2>
-        <button onClick={() => handleMapStyleChange("mapbox://styles/mapbox/satellite-v9")} style={{ display: "block", margin: "10px 0" }}>Satellite</button>
-        <button onClick={() => handleMapStyleChange("mapbox://styles/mapbox/streets-v12")} style={{ display: "block", margin: "10px 0" }}>Streets</button>
-        <button onClick={() => handleMapStyleChange("mapbox://styles/mapbox/dark-v11")} style={{ display: "block", margin: "10px 0" }}>Dark</button>
-        <button onClick={closeModal} style={{ display: "block", margin: "10px 0", backgroundColor: "#ccc" }}>Close</button>
-      </Modal>
     </nav>
   );
 };
