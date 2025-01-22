@@ -13,7 +13,8 @@ const App = () => {
   });
   const [boundingBoxes, setBoundingBoxes] = useState([]);
   const [markers, setMarkers] = useState([]);
-  const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/satellite-v9");
+  const [mapStyle] = useState("mapbox://styles/mapbox/satellite-v9");
+  const [showDetections, setShowDetections] = useState(false);
 
   // Fetch detections from the backend
   const fetchDetections = async () => {
@@ -21,7 +22,8 @@ const App = () => {
       const response = await fetch(`${BACKEND_URL}/detections`);
       const data = await response.json();
 
-      // Remove duplicates based on latitude and longitude
+      console.log('Dados recebidos do backend:', data);
+
       const uniqueMarkers = data.reduce((acc, current) => {
         const exists = acc.find(marker =>
           marker.latitude === current.latitude && marker.longitude === current.longitude
@@ -33,13 +35,102 @@ const App = () => {
       }, []);
 
       setMarkers(uniqueMarkers);
+
+      const convertPixelsToCoords = (detection) => {
+        const IMAGE_WIDTH = 800;
+        const IMAGE_HEIGHT = 600;
+        const DEFAULT_ZOOM = 18.65;
+
+        // Ajuste ainda mais fino da escala base
+        const SCALE_ADJUSTMENT = 0.875;
+
+        // Ajustes mais precisos dos offsets base
+        const LONGITUDE_OFFSET = 0.00000042;
+        const LATITUDE_OFFSET = -0.00000072;
+
+        // Ajustes específicos por classe ainda mais refinados
+        const classAdjustments = {
+          1: { // pool
+            scale: 0.93,
+            lonOffset: -0.0000002,
+            latOffset: -0.0000001
+          },
+          2: { // solar-panel
+            scale: 0.94,  // Reduzido para diminuir a largura
+            lonOffset: 0.0000001,
+            latOffset: -0.0000004  // Ajustado para mover mais para baixo
+          }
+        };
+
+        const classAdjust = classAdjustments[detection.class] || { scale: 1, lonOffset: 0, latOffset: 0 };
+
+        // Ajuste específico para a altura do painel solar
+        const verticalScaleFactor = detection.class === 2 ? 0.92 : 1; // Reduz a altura apenas para painéis solares
+
+        const metersPerPixelAtEquator = (156543.03392 * Math.cos(detection.latitude * Math.PI / 180) / Math.pow(2, DEFAULT_ZOOM))
+          * SCALE_ADJUSTMENT * classAdjust.scale;
+
+        const metersToDegreesAtEquator = 1 / 111319.9;
+
+        const latCorrectionFactor = Math.cos(detection.latitude * Math.PI / 180);
+        const degreesPerPixel = metersPerPixelAtEquator * metersToDegreesAtEquator;
+        const lngPerPixel = degreesPerPixel / latCorrectionFactor;
+        const latPerPixel = degreesPerPixel * verticalScaleFactor; // Aplica o fator de escala vertical
+
+        // Ajuste mais preciso dos offsets centrais
+        const offsetX = (IMAGE_WIDTH / 2) * 0.988;
+        const offsetY = (IMAGE_HEIGHT / 2) * 0.988;
+
+        const west = detection.longitude +
+          (detection.bbox_xmin - offsetX) * lngPerPixel +
+          LONGITUDE_OFFSET +
+          classAdjust.lonOffset;
+
+        const east = detection.longitude +
+          (detection.bbox_xmax - offsetX) * lngPerPixel +
+          LONGITUDE_OFFSET +
+          classAdjust.lonOffset;
+
+        const north = detection.latitude -
+          (detection.bbox_ymin - offsetY) * latPerPixel +
+          LATITUDE_OFFSET +
+          classAdjust.latOffset;
+
+        const south = detection.latitude -
+          (detection.bbox_ymax - offsetY) * latPerPixel +
+          LATITUDE_OFFSET +
+          classAdjust.latOffset;
+
+        return [
+          [west, north],
+          [east, north],
+          [east, south],
+          [west, south],
+          [west, north]
+        ];
+      };
+
+      const boxes = data.map(detection => {
+        console.log('Processando detecção:', detection);
+        const bbox = convertPixelsToCoords(detection);
+        console.log('BBox convertida:', bbox);
+
+        return {
+          name: detection.class === 1 ? 'pool' : 'solar-panel',
+          confidence: detection.confidence || 0.9,
+          bbox: bbox
+        };
+      });
+
+      console.log('Bounding boxes geradas:', boxes);
+      setBoundingBoxes(boxes);
     } catch (error) {
       console.error('Error fetching detections:', error);
     }
   };
 
   useEffect(() => {
-    fetchDetections(); // Fetch markers when the component loads
+    fetchDetections();
   }, []);
 
   const handleSearch = (location) => {
@@ -51,80 +142,56 @@ const App = () => {
   };
 
   const handleDetect = () => {
+    const DEFAULT_ZOOM = 18;  // Mesmo zoom usado na conversão
     console.log('Starting detection process...');
-    fetch(`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${viewState.longitude},${viewState.latitude},${viewState.zoom},0,0/800x600?access_token=${MAPBOX_ACCESS_TOKEN}`)
-      .then(response => {
-        console.log('Mapbox response received');
-        return response.blob();
-      })
+
+    fetch(`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${viewState.longitude},${viewState.latitude},${DEFAULT_ZOOM},0,0/800x600?access_token=${MAPBOX_ACCESS_TOKEN}`)
+      .then(response => response.blob())
       .then(blob => {
-        console.log('Blob received from Mapbox');
         const formData = new FormData();
         formData.append('image', blob, 'map-image.jpg');
         formData.append('latitude', viewState.latitude);
         formData.append('longitude', viewState.longitude);
-  
-        console.log('Sending detection request to backend');
-        return fetch(`${BACKEND_URL}/detect`, { 
+        formData.append('zoom', DEFAULT_ZOOM);  // Incluir o zoom usado
+
+        return fetch(`${BACKEND_URL}/detect`, {
           method: 'POST',
           body: formData
         });
       })
-      .then(response => {
-        console.log('Backend response received');
-        return response.json();
-      })
+      .then(response => response.json())
       .then(data => {
-        console.log('Detection results:', data); // Debugging information
-        const poolDetection = data.poolDetection || [];
-        const solarPanelDetection = data.solarPanelDetection || [];
-        const boxes = [
-          ...poolDetection.map(d => ({
-            ...d,
-            color: 'blue',
-            bbox: [
-              [d.bbox[0], d.bbox[1]],
-              [d.bbox[2], d.bbox[1]],
-              [d.bbox[2], d.bbox[3]],
-              [d.bbox[0], d.bbox[3]],
-              [d.bbox[0], d.bbox[1]]
-            ]
-          })),
-          ...solarPanelDetection.map(d => ({
-            ...d,
-            color: 'red',
-            bbox: [
-              [d.bbox[0], d.bbox[1]],
-              [d.bbox[2], d.bbox[1]],
-              [d.bbox[2], d.bbox[3]],
-              [d.bbox[0], d.bbox[3]],
-              [d.bbox[0], d.bbox[1]]
-            ]
-          }))
-        ];
-        setBoundingBoxes(boxes);
+        console.log('Detection results:', data);
+        fetchDetections();
       })
       .catch(error => {
         console.error('Error:', error);
       });
   };
 
-  const handleChangeMapStyle = (style) => {
-    setMapStyle(style);
+  const toggleDetections = () => {
+    console.log('Alternando visibilidade das detecções. Novo estado:', !showDetections); // Log 6
+    setShowDetections(!showDetections);
   };
 
   return (
     <div>
-      <Navbar onSearch={handleSearch} onDetect={handleDetect} onChangeMapStyle={handleChangeMapStyle} />
+      <Navbar
+        onSearch={handleSearch}
+        onDetect={handleDetect}
+        onToggleDetections={toggleDetections}
+        showDetections={showDetections}
+      />
       <MapComponent
         viewState={viewState}
         setViewState={setViewState}
         markers={markers}
-        boundingBoxes={boundingBoxes}
+        boundingBoxes={showDetections ? boundingBoxes : []}
         mapStyle={mapStyle}
       />
     </div>
   );
 };
+
 
 export default App;

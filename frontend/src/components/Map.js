@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import Supercluster from "supercluster";
-import mapboxgl from "mapbox-gl";
 import Modal from 'react-modal';
+import DetectionOverlay from './DetectionOverlay';
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZnJhbmNpc2Nvc2FudG9zMDUiLCJhIjoiY20yZW9lNHRiMDBqZjJrcXk0bDEzNHZxNCJ9.thoOGfrXKnbjSUaREZ-OSg";
 
-const MapComponent = ({ viewState, setViewState, markers, mapStyle }) => {
+const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyle }) => {
   const mapRef = useRef();
   const [clusters, setClusters] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
@@ -73,6 +73,7 @@ const MapComponent = ({ viewState, setViewState, markers, mapStyle }) => {
         onLoad={updateClusters}
       >
         <NavigationControl position="top-right" />
+        <DetectionOverlay boundingBoxes={boundingBoxes} />
         <Source
           id="clusters"
           type="geojson"

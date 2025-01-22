@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import Modal from 'react-modal';
 
 const MAPBOX_ACCESS_TOKEN = "pk.eyJ1IjoiZnJhbmNpc2Nvc2FudG9zMDUiLCJhIjoiY20yZW9lNHRiMDBqZjJrcXk0bDEzNHZxNCJ9.thoOGfrXKnbjSUaREZ-OSg";
 
-const Navbar = ({ onSearch, onDetect, onChangeMapStyle }) => {
+const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections }) => {
   const [searchInput, setSearchInput] = useState("");
-  const [modalIsOpen, setModalIsOpen] = useState(false);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -21,19 +19,6 @@ const Navbar = ({ onSearch, onDetect, onChangeMapStyle }) => {
       const coordinates = data.features[0].geometry.coordinates;
       onSearch({ longitude: coordinates[0], latitude: coordinates[1] });
     }
-  };
-
-  const openModal = () => {
-    setModalIsOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalIsOpen(false);
-  };
-
-  const handleMapStyleChange = (style) => {
-    onChangeMapStyle(style);
-    closeModal();
   };
 
   return (
@@ -71,25 +56,44 @@ const Navbar = ({ onSearch, onDetect, onChangeMapStyle }) => {
             border: "none",
             borderRadius: "5px",
             cursor: "pointer",
+            marginRight: "0.5rem",
           }}
         >
           Search
         </button>
       </form>
-      <button
-        type="button"
-        onClick={onDetect}
-        style={{
-          padding: "0.5rem 1rem",
-          backgroundColor: "red",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-        }}
-      >
-        Detect
-      </button>
+
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <button
+          type="button"
+          onClick={onToggleDetections}
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: showDetections ? "#4CAF50" : "#666",
+            color: "#fff",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+          }}
+        >
+          {showDetections ? "Hide Detections" : "Show Detections"}
+        </button>
+        
+        <button
+          type="button"
+          onClick={onDetect}
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "red",
+            color: "#fff",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+          }}
+        >
+          Detect
+        </button>
+      </div>
     </nav>
   );
 };
