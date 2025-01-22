@@ -70,6 +70,7 @@ const createDetectionsTable = async () => {
             bbox_ymax FLOAT NOT NULL,
             latitude FLOAT NOT NULL,
             longitude FLOAT NOT NULL,
+            confidence FLOAT NOT NULL,
             original_image_path VARCHAR(255),
             annotated_image_path VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -85,10 +86,8 @@ const createDetectionsTable = async () => {
 };
 
 initializeDatabase();
-
 const insertDetection = async (detection, originalImagePath, annotatedImagePath) => {
-    // Verificar se a confiança é maior que 0.8 antes de inserir
-    if (detection.confidence <= 0.7) {
+    if (detection.confidence <= 0.5) {
         console.log('Skipping detection with confidence below threshold:', detection.confidence);
         return;
     }
@@ -103,21 +102,23 @@ const insertDetection = async (detection, originalImagePath, annotatedImagePath)
             bbox_ymax, 
             latitude, 
             longitude, 
+            confidence,
             original_image_path,
             annotated_image_path
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `;
 
     const values = [
         detection.class,
         detection.name,
-        detection.bbox[0], // xmin
-        detection.bbox[1], // ymin
-        detection.bbox[2], // xmax
-        detection.bbox[3], // ymax
+        detection.bbox[0],
+        detection.bbox[1],
+        detection.bbox[2],
+        detection.bbox[3],
         detection.latitude,
         detection.longitude,
+        detection.confidence,
         originalImagePath,
         annotatedImagePath
     ];
