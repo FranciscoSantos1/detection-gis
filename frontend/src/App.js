@@ -117,7 +117,7 @@ const App = () => {
 
         return {
           name: detection.class === 1 ? 'pool' : 'solar-panel',
-          confidence: detection.confidence || 0.9,
+          confidence: detection.confidence,
           bbox: bbox
         };
       });

@@ -32,7 +32,7 @@ const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections }) => {
         color: "#fff",
       }}
     >
-      <h1>Pool Detection GIS</h1>
+      <h1>Detection GIS</h1>
 
       <form onSubmit={handleSearch} style={{ display: "flex", alignItems: "center" }}>
         <input

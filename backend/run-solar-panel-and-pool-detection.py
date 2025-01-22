@@ -43,7 +43,6 @@ def draw_detections(image_path, detections, output_path):
 def run_detection(image_path, model, label, name, latitude, longitude):
     results = model.predict(image_path)
     
-    # Filtrar detecções com confiança > 0.8
     detections = [
         {
             "class": label,
@@ -54,7 +53,7 @@ def run_detection(image_path, model, label, name, latitude, longitude):
             "longitude": longitude if longitude is not None else 0.0
         }
         for box in results[0].boxes
-        if float(box.conf[0]) > 0.8  # Adicionar filtro de confiança
+        if float(box.conf[0]) > 0.5 
     ]
     
     return detections

@@ -70,7 +70,8 @@ const createDetectionsTable = async () => {
             bbox_ymax FLOAT NOT NULL,
             latitude FLOAT NOT NULL,
             longitude FLOAT NOT NULL,
-            image_path VARCHAR(255),
+            original_image_path VARCHAR(255),
+            annotated_image_path VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `;
@@ -87,7 +88,7 @@ initializeDatabase();
 
 const insertDetection = async (detection, originalImagePath, annotatedImagePath) => {
     // Verificar se a confiança é maior que 0.8 antes de inserir
-    if (detection.confidence <= 0.8) {
+    if (detection.confidence <= 0.7) {
         console.log('Skipping detection with confidence below threshold:', detection.confidence);
         return;
     }
@@ -142,22 +143,22 @@ app.post('/detect', upload.single('image'), async (req, res) => {
     console.log(`Latitude: ${latitude}, Longitude: ${longitude}`);
 
     const runDetectionScript = (scriptPath, callback) => {
-        const pythonPath = path.join(__dirname, 'venv', 'Scripts', 'python.exe');
+        const pythonPath = 'python'; // Use the global Python executable
         const pythonScript = spawn(pythonPath, [scriptPath, originalImagePath, latitude, longitude]);
-
+    
         let output = "";
         let errorOutput = "";
-
+    
         pythonScript.stdout.on('data', (data) => {
             output += data.toString();
             console.log('Python stdout:', data.toString());
         });
-
+    
         pythonScript.stderr.on('data', (data) => {
             errorOutput += data.toString();
             console.error('Python stderr:', data.toString());
         });
-
+    
         pythonScript.on('close', async (code) => {
             console.log(`Python script exited with code ${code}`);
             if (errorOutput) {
@@ -172,14 +173,14 @@ app.post('/detect', upload.single('image'), async (req, res) => {
                         return false;
                     }
                 });
-
+    
                 if (jsonLines.length === 0) {
                     throw new Error('No valid JSON found in the output');
                 }
-
+    
                 const detectionResult = JSON.parse(jsonLines[0]);
                 const annotatedImagePath = detectionResult.detection_image;
-
+    
                 // Save detections to the database with image paths
                 if (detectionResult.detections && detectionResult.detections.length > 0) {
                     console.log('Detections found, saving to database...');
@@ -191,11 +192,11 @@ app.post('/detect', upload.single('image'), async (req, res) => {
                         );
                     }
                 }
-
+    
                 // Add URLs for frontend access
                 detectionResult.original_image_url = `/uploads/${path.basename(originalImagePath)}`;
                 detectionResult.annotated_image_url = `/annotated_images/${path.basename(annotatedImagePath)}`;
-
+    
                 callback(null, detectionResult);
             } catch (error) {
                 console.error('Failed to parse JSON output:', error);
