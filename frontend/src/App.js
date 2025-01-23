@@ -15,6 +15,7 @@ const App = () => {
   const [markers, setMarkers] = useState([]);
   const [mapStyle] = useState("mapbox://styles/mapbox/satellite-v9");
   const [showDetections, setShowDetections] = useState(false);
+  const [detectionMarkers, setDetectionMarkers] = useState([]);
 
   // Fetch detections from the backend
   const fetchDetections = async () => {
@@ -110,20 +111,32 @@ const App = () => {
         ];
       };
 
-      const boxes = data.map(detection => {
-        console.log('Processando detecção:', detection);
-        const bbox = convertPixelsToCoords(detection);
-        console.log('BBox convertida:', bbox);
+    const boxes = data.map(detection => {
+      console.log('Processando detecção:', detection);
+      const bbox = convertPixelsToCoords(detection);
+      console.log('BBox convertida:', bbox);
 
-        return {
-          name: detection.class === 1 ? 'pool' : 'solar-panel',
-          confidence: detection.confidence,
-          bbox: bbox
-        };
-      });
+      return {
+        name: detection.class === 1 ? 'pool' : 'solar-panel',
+        confidence: detection.confidence,
+        bbox: bbox,
+        center: {
+          latitude: (bbox[0][1] + bbox[2][1]) / 2,
+          longitude: (bbox[0][0] + bbox[2][0]) / 2
+        }
+      };
+    });
 
-      console.log('Bounding boxes geradas:', boxes);
-      setBoundingBoxes(boxes);
+    console.log('Bounding boxes geradas:', boxes);
+    setBoundingBoxes(boxes);
+
+    const markers = boxes.map(box => ({
+      latitude: box.center.latitude,
+      longitude: box.center.longitude,
+      color: box.name === 'pool' ? 'blue' : 'yellow'
+    }));
+
+    setDetectionMarkers(markers);
     } catch (error) {
       console.error('Error fetching detections:', error);
     }
@@ -144,7 +157,7 @@ const App = () => {
   const handleDetect = () => {
     const DEFAULT_ZOOM = 18;  // Mesmo zoom usado na conversão
     console.log('Starting detection process...');
-
+  
     fetch(`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${viewState.longitude},${viewState.latitude},${DEFAULT_ZOOM},0,0/800x600?access_token=${MAPBOX_ACCESS_TOKEN}`)
       .then(response => response.blob())
       .then(blob => {
@@ -153,7 +166,7 @@ const App = () => {
         formData.append('latitude', viewState.latitude);
         formData.append('longitude', viewState.longitude);
         formData.append('zoom', DEFAULT_ZOOM);  // Incluir o zoom usado
-
+  
         return fetch(`${BACKEND_URL}/detect`, {
           method: 'POST',
           body: formData
@@ -163,12 +176,13 @@ const App = () => {
       .then(data => {
         console.log('Detection results:', data);
         fetchDetections();
+        setShowDetections(true);  // Show bounding boxes after detection
       })
       .catch(error => {
         console.error('Error:', error);
       });
   };
-
+  
   const toggleDetections = () => {
     console.log('Alternando visibilidade das detecções. Novo estado:', !showDetections); // Log 6
     setShowDetections(!showDetections);
@@ -188,6 +202,8 @@ const App = () => {
         markers={markers}
         boundingBoxes={showDetections ? boundingBoxes : []}
         mapStyle={mapStyle}
+        detectionMarkers={detectionMarkers}
+        showDetections={showDetections}
       />
     </div>
   );

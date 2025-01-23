@@ -7,7 +7,7 @@ import DetectionOverlay from './DetectionOverlay';
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZnJhbmNpc2Nvc2FudG9zMDUiLCJhIjoiY20yZW9lNHRiMDBqZjJrcXk0bDEzNHZxNCJ9.thoOGfrXKnbjSUaREZ-OSg";
 
-const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyle }) => {
+const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyle, detectionMarkers, showDetections }) => {
   const mapRef = useRef();
   const [clusters, setClusters] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
@@ -61,7 +61,7 @@ const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyl
     closeModal();
   };
 
-  return (
+ return (
     <div style={{ position: "relative" }}>
       <Map
         {...viewState}
@@ -73,68 +73,88 @@ const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyl
         onLoad={updateClusters}
       >
         <NavigationControl position="top-right" />
-        <DetectionOverlay boundingBoxes={boundingBoxes} />
-        <Source
-          id="clusters"
-          type="geojson"
-          data={{
-            type: "FeatureCollection",
-            features: clusters,
-          }}
-          cluster={true}
-          clusterMaxZoom={14}
-          clusterRadius={50}
-        >
-          <Layer
-            id="cluster-layer"
-            type="circle"
-            source="clusters"
-            filter={["has", "point_count"]}
-            paint={{
-              "circle-color": [
-                "step",
-                ["get", "point_count"],
-                "#51bbd6",
-                100,
-                "#f1f075",
-                750,
-                "#f28cb1",
-              ],
-              "circle-radius": [
-                "step",
-                ["get", "point_count"],
-                20,
-                100,
-                30,
-                750,
-                40,
-              ],
+        {showDetections ? (
+          <DetectionOverlay boundingBoxes={boundingBoxes} />
+        ) : (
+          <Source
+            id="detection-markers"
+            type="geojson"
+            data={{
+              type: "FeatureCollection",
+              features: detectionMarkers.map((marker, index) => ({
+                type: "Feature",
+                geometry: {
+                  type: "Point",
+                  coordinates: [marker.longitude, marker.latitude]
+                },
+                properties: {
+                  id: index,
+                  name: marker.name,
+                  confidence: marker.confidence
+                }
+              }))
             }}
-          />
-          <Layer
-            id="cluster-count"
-            type="symbol"
-            source="clusters"
-            filter={["has", "point_count"]}
-            layout={{
-              "text-field": "{point_count_abbreviated}",
-              "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
-              "text-size": 12,
-            }}
-          />
-          <Layer
-            id="unclustered-point"
-            type="circle"
-            source="clusters"
-            filter={["!", ["has", "point_count"]]}
-            paint={{
-              "circle-color": "#11b4da",
-              "circle-radius": 8,
-              "circle-stroke-width": 1,
-              "circle-stroke-color": "#fff",
-            }}
-          />
-        </Source>
+            cluster={true}
+            clusterMaxZoom={14}
+            clusterRadius={50}
+          >
+            <Layer
+              id="cluster-layer"
+              type="circle"
+              source="detection-markers"
+              filter={["has", "point_count"]}
+              paint={{
+                "circle-color": [
+                  "step",
+                  ["get", "point_count"],
+                  "#51bbd6",
+                  100,
+                  "#f1f075",
+                  750,
+                  "#f28cb1",
+                ],
+                "circle-radius": [
+                  "step",
+                  ["get", "point_count"],
+                  20,
+                  100,
+                  30,
+                  750,
+                  40,
+                ],
+              }}
+            />
+            <Layer
+              id="cluster-count"
+              type="symbol"
+              source="detection-markers"
+              filter={["has", "point_count"]}
+              layout={{
+                "text-field": "{point_count_abbreviated}",
+                "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+                "text-size": 12,
+              }}
+            />
+            <Layer
+              id="unclustered-point"
+              type="circle"
+              source="detection-markers"
+              filter={["!", ["has", "point_count"]]}
+              paint={{
+                "circle-color": [
+                  "match",
+                  ["get", "name"],
+                  "pool", "#0000FF", // Blue for pool
+                  "solar-panel", "#FFFF00", // Yellow for solar panel
+                  "#11b4da" // Default color
+                ],
+                "circle-radius": 8,
+                "circle-stroke-width": 1,
+                "circle-stroke-color": "#fff",
+              }}
+            />
+          </Source>
+        )}
         {markers.map((marker, index) => (
           <Marker
             key={index}
@@ -178,6 +198,6 @@ const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyl
       </Modal>
     </div>
   );
-};
+}; 
 
 export default MapComponent;
