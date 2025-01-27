@@ -86,11 +86,75 @@ const createDetectionsTable = async () => {
 };
 
 initializeDatabase();
+
+const convertPixelsToCoords = (detection) => {
+    const IMAGE_WIDTH = 800;
+    const IMAGE_HEIGHT = 600;
+    const DEFAULT_ZOOM = 18.65;
+    const SCALE_ADJUSTMENT = 0.875;
+    const LONGITUDE_OFFSET = 0.00000042;
+    const LATITUDE_OFFSET = -0.00000072;
+
+    const classAdjustments = {
+        1: { // pool
+            scale: 0.93,
+            lonOffset: -0.0000002,
+            latOffset: -0.0000001
+        },
+        2: { // solar-panel
+            scale: 0.94,
+            lonOffset: 0.0000001,
+            latOffset: -0.0000004
+        }
+    };
+
+    const classAdjust = classAdjustments[detection.class] || { scale: 1, lonOffset: 0, latOffset: 0 };
+    const verticalScaleFactor = detection.class === 2 ? 0.92 : 1;
+
+    const metersPerPixelAtEquator = (156543.03392 * Math.cos(detection.latitude * Math.PI / 180) / Math.pow(2, DEFAULT_ZOOM))
+        * SCALE_ADJUSTMENT * classAdjust.scale;
+
+    const metersToDegreesAtEquator = 1 / 111319.9;
+    const latCorrectionFactor = Math.cos(detection.latitude * Math.PI / 180);
+    const degreesPerPixel = metersPerPixelAtEquator * metersToDegreesAtEquator;
+    const lngPerPixel = degreesPerPixel / latCorrectionFactor;
+    const latPerPixel = degreesPerPixel * verticalScaleFactor;
+
+    const offsetX = (IMAGE_WIDTH / 2) * 0.988;
+    const offsetY = (IMAGE_HEIGHT / 2) * 0.988;
+
+    // Extrair as coordenadas da bbox do objeto detection
+    const bbox_xmin = detection.bbox[0];
+    const bbox_xmax = detection.bbox[2];
+    const bbox_ymin = detection.bbox[1];
+    const bbox_ymax = detection.bbox[3];
+
+    // Calcular o centro em pixels
+    const centerPixelX = (bbox_xmin + bbox_xmax) / 2;
+    const centerPixelY = (bbox_ymin + bbox_ymax) / 2;
+
+    // Converter centro para coordenadas geográficas
+    const centerLongitude = detection.longitude +
+        (centerPixelX - offsetX) * lngPerPixel +
+        LONGITUDE_OFFSET +
+        classAdjust.lonOffset;
+
+    const centerLatitude = detection.latitude -
+        (centerPixelY - offsetY) * latPerPixel +
+        LATITUDE_OFFSET +
+        classAdjust.latOffset;
+
+    return { centerLatitude, centerLongitude };
+};
+
 const insertDetection = async (detection, originalImagePath, annotatedImagePath) => {
     if (detection.confidence <= 0.5) {
         console.log('Skipping detection with confidence below threshold:', detection.confidence);
         return;
     }
+
+    // Calcular coordenadas do centro usando a função de conversão
+    const { centerLatitude, centerLongitude } = convertPixelsToCoords(detection);
 
     const query = `
         INSERT INTO detections (
@@ -104,9 +168,11 @@ const insertDetection = async (detection, originalImagePath, annotatedImagePath)
             longitude, 
             confidence,
             original_image_path,
-            annotated_image_path
+            annotated_image_path,
+            center_latitude,
+            center_longitude
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     `;
 
     const values = [
@@ -120,11 +186,16 @@ const insertDetection = async (detection, originalImagePath, annotatedImagePath)
         detection.longitude,
         detection.confidence,
         originalImagePath,
-        annotatedImagePath
+        annotatedImagePath,
+        centerLatitude,
+        centerLongitude
     ];
 
     try {
-        console.log('Inserting detection:', values);
+        console.log('Inserting detection with converted center coordinates:', {
+            centerLatitude,
+            centerLongitude
+        });
         await pool.query(query, values);
         console.log('Detection inserted successfully.');
     } catch (error) {
@@ -146,20 +217,20 @@ app.post('/detect', upload.single('image'), async (req, res) => {
     const runDetectionScript = (scriptPath, callback) => {
         const pythonPath = 'python'; // Use the global Python executable
         const pythonScript = spawn(pythonPath, [scriptPath, originalImagePath, latitude, longitude]);
-    
+
         let output = "";
         let errorOutput = "";
-    
+
         pythonScript.stdout.on('data', (data) => {
             output += data.toString();
             console.log('Python stdout:', data.toString());
         });
-    
+
         pythonScript.stderr.on('data', (data) => {
             errorOutput += data.toString();
             console.error('Python stderr:', data.toString());
         });
-    
+
         pythonScript.on('close', async (code) => {
             console.log(`Python script exited with code ${code}`);
             if (errorOutput) {
@@ -174,30 +245,30 @@ app.post('/detect', upload.single('image'), async (req, res) => {
                         return false;
                     }
                 });
-    
+
                 if (jsonLines.length === 0) {
                     throw new Error('No valid JSON found in the output');
                 }
-    
+
                 const detectionResult = JSON.parse(jsonLines[0]);
                 const annotatedImagePath = detectionResult.detection_image;
-    
+
                 // Save detections to the database with image paths
                 if (detectionResult.detections && detectionResult.detections.length > 0) {
                     console.log('Detections found, saving to database...');
                     for (const detection of detectionResult.detections) {
                         await insertDetection(
-                            detection, 
+                            detection,
                             originalImagePath.replace(/\\/g, '/'),  // Convert Windows path to Unix style
                             annotatedImagePath.replace(/\\/g, '/')  // Convert Windows path to Unix style
                         );
                     }
                 }
-    
+
                 // Add URLs for frontend access
                 detectionResult.original_image_url = `/uploads/${path.basename(originalImagePath)}`;
                 detectionResult.annotated_image_url = `/annotated_images/${path.basename(annotatedImagePath)}`;
-    
+
                 callback(null, detectionResult);
             } catch (error) {
                 console.error('Failed to parse JSON output:', error);
@@ -227,7 +298,9 @@ app.get('/detections', async (req, res) => {
                         WHEN d.annotated_image_path IS NOT NULL 
                         THEN '/annotated_images/' || split_part(d.annotated_image_path, '/', -1)
                         ELSE NULL 
-                    END as annotated_image_url
+                    END as annotated_image_url,
+                    center_latitude,
+                    center_longitude
             FROM detections d
             ORDER BY created_at DESC;
         `;
