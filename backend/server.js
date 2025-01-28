@@ -73,6 +73,8 @@ const createDetectionsTable = async () => {
             confidence FLOAT NOT NULL,
             original_image_path VARCHAR(255),
             annotated_image_path VARCHAR(255),
+            center_latitude FLOAT,
+            center_longitude FLOAT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `;
@@ -84,7 +86,6 @@ const createDetectionsTable = async () => {
         console.error('Error creating detections table:', error.message);
     }
 };
-
 initializeDatabase();
 
 const convertPixelsToCoords = (detection) => {
@@ -153,8 +154,15 @@ const insertDetection = async (detection, originalImagePath, annotatedImagePath)
         return;
     }
 
-    // Calcular coordenadas do centro usando a função de conversão
+    // Calculate center coordinates using the conversion function
     const { centerLatitude, centerLongitude } = convertPixelsToCoords(detection);
+
+    // Check if a similar detection already exists
+    const exists = await detectionExists(centerLatitude, centerLongitude);
+    if (exists) {
+        console.log('Skipping repeated detection at coordinates:', { centerLatitude, centerLongitude });
+        return;
+    }
 
     const query = `
         INSERT INTO detections (
@@ -202,7 +210,25 @@ const insertDetection = async (detection, originalImagePath, annotatedImagePath)
         console.error('Error inserting detection:', error.message);
     }
 };
+const MARGIN_OF_ERROR = 0.0001;
 
+const detectionExists = async (centerLatitude, centerLongitude) => {
+    const query = `
+        SELECT 1 FROM detections
+        WHERE ABS(center_latitude - $1) < $3
+        AND ABS(center_longitude - $2) < $3
+        LIMIT 1;
+    `;
+    const values = [centerLatitude, centerLongitude, MARGIN_OF_ERROR];
+
+    try {
+        const result = await pool.query(query, values);
+        return result.rows.length > 0;
+    } catch (error) {
+        console.error('Error checking for existing detection:', error.message);
+        return false;
+    }
+};
 app.post('/detect', upload.single('image'), async (req, res) => {
     const originalImagePath = req.file.path;
     const { latitude, longitude } = req.body;
