@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Navbar from './components/NavBar';
 import MapComponent from './components/Map';
+import DetectionsGrid from './components/DetectionGrid';
 
 const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -111,32 +113,32 @@ const App = () => {
         ];
       };
 
-    const boxes = data.map(detection => {
-      console.log('Processando detecção:', detection);
-      const bbox = convertPixelsToCoords(detection);
-      console.log('BBox convertida:', bbox);
+      const boxes = data.map(detection => {
+        console.log('Processando detecção:', detection);
+        const bbox = convertPixelsToCoords(detection);
+        console.log('BBox convertida:', bbox);
 
-      return {
-        name: detection.class === 1 ? 'pool' : 'solar-panel',
-        confidence: detection.confidence,
-        bbox: bbox,
-        center: {
-          latitude: (bbox[0][1] + bbox[2][1]) / 2,
-          longitude: (bbox[0][0] + bbox[2][0]) / 2
-        }
-      };
-    });
+        return {
+          name: detection.class === 1 ? 'pool' : 'solar-panel',
+          confidence: detection.confidence,
+          bbox: bbox,
+          center: {
+            latitude: (bbox[0][1] + bbox[2][1]) / 2,
+            longitude: (bbox[0][0] + bbox[2][0]) / 2
+          }
+        };
+      });
 
-    console.log('Bounding boxes geradas:', boxes);
-    setBoundingBoxes(boxes);
+      console.log('Bounding boxes geradas:', boxes);
+      setBoundingBoxes(boxes);
 
-    const markers = boxes.map(box => ({
-      latitude: box.center.latitude,
-      longitude: box.center.longitude,
-      color: box.name === 'pool' ? 'blue' : 'yellow'
-    }));
+      const markers = boxes.map(box => ({
+        latitude: box.center.latitude,
+        longitude: box.center.longitude,
+        color: box.name === 'pool' ? 'blue' : 'yellow'
+      }));
 
-    setDetectionMarkers(markers);
+      setDetectionMarkers(markers);
     } catch (error) {
       console.error('Error fetching detections:', error);
     }
@@ -157,7 +159,7 @@ const App = () => {
   const handleDetect = () => {
     const DEFAULT_ZOOM = 18;  // Mesmo zoom usado na conversão
     console.log('Starting detection process...');
-  
+
     fetch(`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${viewState.longitude},${viewState.latitude},${DEFAULT_ZOOM},0,0/800x600?access_token=${MAPBOX_ACCESS_TOKEN}`)
       .then(response => response.blob())
       .then(blob => {
@@ -166,7 +168,7 @@ const App = () => {
         formData.append('latitude', viewState.latitude);
         formData.append('longitude', viewState.longitude);
         formData.append('zoom', DEFAULT_ZOOM);  // Incluir o zoom usado
-  
+
         return fetch(`${BACKEND_URL}/detect`, {
           method: 'POST',
           body: formData
@@ -175,6 +177,9 @@ const App = () => {
       .then(response => response.json())
       .then(data => {
         console.log('Detection results:', data);
+        if (data.skippedDetections && data.skippedDetections.includes('duplicate')) {
+          alert('Some detections were skipped because they were duplicates.');
+        }
         fetchDetections();
         setShowDetections(true);  // Show bounding boxes after detection
       })
@@ -182,30 +187,37 @@ const App = () => {
         console.error('Error:', error);
       });
   };
-  
+
   const toggleDetections = () => {
     console.log('Alternando visibilidade das detecções. Novo estado:', !showDetections); // Log 6
     setShowDetections(!showDetections);
   };
 
   return (
-    <div>
-      <Navbar
-        onSearch={handleSearch}
-        onDetect={handleDetect}
-        onToggleDetections={toggleDetections}
-        showDetections={showDetections}
-      />
-      <MapComponent
-        viewState={viewState}
-        setViewState={setViewState}
-        markers={markers}
-        boundingBoxes={showDetections ? boundingBoxes : []}
-        mapStyle={mapStyle}
-        detectionMarkers={detectionMarkers}
-        showDetections={showDetections}
-      />
-    </div>
+    <Router>
+      <div style={{ display: 'flex' }}>
+        <Navbar
+          onSearch={handleSearch}
+          onDetect={handleDetect}
+          onToggleDetections={toggleDetections}
+          showDetections={showDetections}
+        />
+        <div style={{ flex: 1 }}>
+          <Routes>
+            <Route path="/detections" element={<DetectionsGrid />} />
+            <Route path="/" element={<MapComponent
+              viewState={viewState}
+              setViewState={setViewState}
+              markers={markers}
+              boundingBoxes={showDetections ? boundingBoxes : []}
+              mapStyle={mapStyle}
+              detectionMarkers={detectionMarkers}
+              showDetections={showDetections}
+            />} />
+          </Routes>
+        </div>
+      </div>
+    </Router>
   );
 };
 

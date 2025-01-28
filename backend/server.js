@@ -151,7 +151,7 @@ const convertPixelsToCoords = (detection) => {
 const insertDetection = async (detection, originalImagePath, annotatedImagePath) => {
     if (detection.confidence <= 0.5) {
         console.log('Skipping detection with confidence below threshold:', detection.confidence);
-        return;
+        return { status: 'skipped', reason: 'low_confidence' };
     }
 
     // Calculate center coordinates using the conversion function
@@ -161,7 +161,7 @@ const insertDetection = async (detection, originalImagePath, annotatedImagePath)
     const exists = await detectionExists(centerLatitude, centerLongitude);
     if (exists) {
         console.log('Skipping repeated detection at coordinates:', { centerLatitude, centerLongitude });
-        return;
+        return { status: 'skipped', reason: 'duplicate' };
     }
 
     const query = `
@@ -206,10 +206,13 @@ const insertDetection = async (detection, originalImagePath, annotatedImagePath)
         });
         await pool.query(query, values);
         console.log('Detection inserted successfully.');
+        return { status: 'inserted' };
     } catch (error) {
         console.error('Error inserting detection:', error.message);
+        return { status: 'error', reason: error.message };
     }
 };
+
 const MARGIN_OF_ERROR = 0.0001;
 
 const detectionExists = async (centerLatitude, centerLongitude) => {
@@ -229,6 +232,7 @@ const detectionExists = async (centerLatitude, centerLongitude) => {
         return false;
     }
 };
+
 app.post('/detect', upload.single('image'), async (req, res) => {
     const originalImagePath = req.file.path;
     const { latitude, longitude } = req.body;
@@ -280,14 +284,18 @@ app.post('/detect', upload.single('image'), async (req, res) => {
                 const annotatedImagePath = detectionResult.detection_image;
 
                 // Save detections to the database with image paths
+                let skippedDetections = [];
                 if (detectionResult.detections && detectionResult.detections.length > 0) {
                     console.log('Detections found, saving to database...');
                     for (const detection of detectionResult.detections) {
-                        await insertDetection(
+                        const result = await insertDetection(
                             detection,
                             originalImagePath.replace(/\\/g, '/'),  // Convert Windows path to Unix style
                             annotatedImagePath.replace(/\\/g, '/')  // Convert Windows path to Unix style
                         );
+                        if (result.status === 'skipped') {
+                            skippedDetections.push(result.reason);
+                        }
                     }
                 }
 
@@ -295,7 +303,11 @@ app.post('/detect', upload.single('image'), async (req, res) => {
                 detectionResult.original_image_url = `/uploads/${path.basename(originalImagePath)}`;
                 detectionResult.annotated_image_url = `/annotated_images/${path.basename(annotatedImagePath)}`;
 
-                callback(null, detectionResult);
+                if (skippedDetections.length > 0) {
+                    callback(null, { ...detectionResult, skippedDetections });
+                } else {
+                    callback(null, detectionResult);
+                }
             } catch (error) {
                 console.error('Failed to parse JSON output:', error);
                 callback(error, null);
@@ -306,6 +318,9 @@ app.post('/detect', upload.single('image'), async (req, res) => {
     runDetectionScript('./run-solar-panel-and-pool-detection.py', (err, result) => {
         if (err) {
             return res.status(500).send(err.message);
+        }
+        if (result.skippedDetections && result.skippedDetections.includes('duplicate')) {
+            return res.status(200).json({ message: 'Some detections were skipped because they were duplicates.', result });
         }
         res.json(result);
     });
