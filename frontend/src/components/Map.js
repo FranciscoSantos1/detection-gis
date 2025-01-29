@@ -143,14 +143,14 @@ const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyl
         </button>
       </div>
       <div style={{ position: "absolute", bottom: 10, left: 10, zIndex: 1, backgroundColor: "white", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-        <h4>Legend</h4>
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <div style={{ width: "20px", height: "20px", backgroundColor: "red", marginRight: "5px" }}></div>
-          <span>Pool</span>
+        <h4 style={{ margin: "0 0 10px 0", fontSize: "16px", fontWeight: "bold" }}>Legend</h4>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "5px" }}>
+          <div style={{ width: "20px", height: "20px", backgroundColor: "red", marginRight: "10px", borderRadius: "50%" }}></div>
+          <span style={{ fontSize: "14px" }}>Pool</span>
         </div>
         <div style={{ display: "flex", alignItems: "center" }}>
-          <div style={{ width: "20px", height: "20px", backgroundColor: "blue", marginRight: "5px" }}></div>
-          <span>Solar Panel</span>
+          <div style={{ width: "20px", height: "20px", backgroundColor: "blue", marginRight: "10px", borderRadius: "50%" }}></div>
+          <span style={{ fontSize: "14px" }}>Solar Panel</span>
         </div>
       </div>
       <Modal
