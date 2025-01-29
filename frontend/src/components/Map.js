@@ -1,14 +1,15 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import Map, { Source, Layer, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import Modal from 'react-modal';
 import DetectionOverlay from './DetectionOverlay';
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoiZnJhbmNpc2Nvc2FudG9zMDUiLCJhIjoiY20yZW9lNHRiMDBqZjJrcXk0bDEzNHZxNCJ9.thoOGfrXKnbjSUaREZ-OSg";
+const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 
 const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyle, detectionMarkers, showDetections }) => {
   const mapRef = useRef();
   const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   const openModal = () => {
     setModalIsOpen(true);
@@ -23,6 +24,15 @@ const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyl
     map.setStyle(style);
     closeModal();
   };
+
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (map) {
+      map.on('load', () => {
+        setIsMapLoaded(true);
+      });
+    }
+  }, []);
 
   return (
     <div style={{ position: "relative" }}>
@@ -118,18 +128,30 @@ const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyl
           </Source>
         )}
       </Map>
-      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 1 }}>
+      <div style={{ position: "absolute", top: 10, left: 10, zIndex: 1 }}>
         <button 
           onClick={openModal} 
           style={{ 
             display: "block", 
             marginBottom: "5px", 
             padding: "5px 10px", 
-            fontSize: "12px" 
+            fontSize: "12px",
+            zIndex: 2 
           }}
         >
           Change Map Style
         </button>
+      </div>
+      <div style={{ position: "absolute", bottom: 10, left: 10, zIndex: 1, backgroundColor: "white", padding: "10px", borderRadius: "5px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+        <h4>Legend</h4>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <div style={{ width: "20px", height: "20px", backgroundColor: "red", marginRight: "5px" }}></div>
+          <span>Pool</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <div style={{ width: "20px", height: "20px", backgroundColor: "blue", marginRight: "5px" }}></div>
+          <span>Solar Panel</span>
+        </div>
       </div>
       <Modal
         isOpen={modalIsOpen}
