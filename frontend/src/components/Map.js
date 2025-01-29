@@ -106,8 +106,8 @@ const MapComponent = ({ viewState, setViewState, markers, boundingBoxes, mapStyl
                 "circle-color": [
                   "match",
                   ["get", "name"],
-                  "pool", "#0000FF",
-                  "solar-panel", "#FFFF00",
+                  "pool", "red",
+                  "solar-panel", "blue",
                   "#11b4da"
                 ],
                 "circle-radius": 8,

@@ -50,9 +50,9 @@ const App = () => {
     try {
       const response = await fetch(`${BACKEND_URL}/detections`);
       const data = await response.json();
-
+  
       console.log('Dados recebidos do backend:', data);
-
+  
       const uniqueMarkers = data.reduce((acc, current) => {
         const exists = acc.find(marker =>
           marker.latitude === current.latitude && marker.longitude === current.longitude
@@ -62,22 +62,18 @@ const App = () => {
         }
         return acc;
       }, []);
-
+  
       setMarkers(uniqueMarkers);
-
+  
       const convertPixelsToCoords = (detection) => {
         const IMAGE_WIDTH = 800;
         const IMAGE_HEIGHT = 600;
         const DEFAULT_ZOOM = 18.65;
-
-        // Ajuste ainda mais fino da escala base
+  
         const SCALE_ADJUSTMENT = 0.875;
-
-        // Ajustes mais precisos dos offsets base
         const LONGITUDE_OFFSET = 0.00000042;
         const LATITUDE_OFFSET = -0.00000072;
-
-        // Ajustes específicos por classe ainda mais refinados
+  
         const classAdjustments = {
           1: { // pool
             scale: 0.93,
@@ -90,46 +86,43 @@ const App = () => {
             latOffset: -0.0000004 
           }
         };
-
+  
         const classAdjust = classAdjustments[detection.class] || { scale: 1, lonOffset: 0, latOffset: 0 };
-
-        // Ajuste específico para a altura do painel solar
-        const verticalScaleFactor = detection.class === 2 ? 0.92 : 1; // Reduz a altura apenas para painéis solares
-
+        const verticalScaleFactor = detection.class === 2 ? 0.92 : 1;
+  
         const metersPerPixelAtEquator = (156543.03392 * Math.cos(detection.latitude * Math.PI / 180) / Math.pow(2, DEFAULT_ZOOM))
           * SCALE_ADJUSTMENT * classAdjust.scale;
-
+  
         const metersToDegreesAtEquator = 1 / 111319.9;
-
+  
         const latCorrectionFactor = Math.cos(detection.latitude * Math.PI / 180);
         const degreesPerPixel = metersPerPixelAtEquator * metersToDegreesAtEquator;
         const lngPerPixel = degreesPerPixel / latCorrectionFactor;
-        const latPerPixel = degreesPerPixel * verticalScaleFactor; // Aplica o fator de escala vertical
-
-        // Ajuste mais preciso dos offsets centrais
+        const latPerPixel = degreesPerPixel * verticalScaleFactor;
+  
         const offsetX = (IMAGE_WIDTH / 2) * 0.988;
         const offsetY = (IMAGE_HEIGHT / 2) * 0.988;
-
+  
         const west = detection.longitude +
           (detection.bbox_xmin - offsetX) * lngPerPixel +
           LONGITUDE_OFFSET +
           classAdjust.lonOffset;
-
+  
         const east = detection.longitude +
           (detection.bbox_xmax - offsetX) * lngPerPixel +
           LONGITUDE_OFFSET +
           classAdjust.lonOffset;
-
+  
         const north = detection.latitude -
           (detection.bbox_ymin - offsetY) * latPerPixel +
           LATITUDE_OFFSET +
           classAdjust.latOffset;
-
+  
         const south = detection.latitude -
           (detection.bbox_ymax - offsetY) * latPerPixel +
           LATITUDE_OFFSET +
           classAdjust.latOffset;
-
+  
         return [
           [west, north],
           [east, north],
@@ -138,12 +131,12 @@ const App = () => {
           [west, north]
         ];
       };
-
+  
       const boxes = data.map(detection => {
         console.log('Processando detecção:', detection);
         const bbox = convertPixelsToCoords(detection);
         console.log('BBox convertida:', bbox);
-
+  
         return {
           name: detection.class === 1 ? 'pool' : 'solar-panel',
           confidence: detection.confidence,
@@ -154,16 +147,16 @@ const App = () => {
           }
         };
       });
-
+  
       console.log('Bounding boxes geradas:', boxes);
       setBoundingBoxes(boxes);
-
+  
       const markers = boxes.map(box => ({
         latitude: box.center.latitude,
         longitude: box.center.longitude,
-        color: box.name === 'pool' ? 'blue' : 'yellow'
+        color: box.name === 'pool' ? 'red' : 'blue'
       }));
-
+  
       setDetectionMarkers(markers);
     } catch (error) {
       console.error('Error fetching detections:', error);

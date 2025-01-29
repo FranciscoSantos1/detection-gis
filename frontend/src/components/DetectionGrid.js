@@ -70,6 +70,7 @@ const DetectionsGrid = () => {
       }}>
         {detections.map(detection => (
           <div 
+            onClick={() => handleCardClick(detection.latitude, detection.longitude)}
             key={detection.id} 
             style={{ 
               border: '1px solid #ccc',
