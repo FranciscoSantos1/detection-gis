@@ -380,6 +380,21 @@ app.get('/detections/:id', async (req, res) => {
     }
 });
 
+app.delete('/detections/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const query = 'DELETE FROM detections WHERE id = $1';
+        const result = await pool.query(query, [id]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Detection not found' });
+        }
+        res.status(200).json({ message: 'Detection deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting detection:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

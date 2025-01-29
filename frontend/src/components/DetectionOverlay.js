@@ -28,7 +28,6 @@ const DetectionOverlay = ({ boundingBoxes }) => {
     return (
         <>
             <Source id="detection-boxes" type="geojson" data={geojsonData}>
-                {/* Bounding boxes fill */}
                 <Layer
                     id="detection-boxes-fill"
                     type="fill"
@@ -38,7 +37,6 @@ const DetectionOverlay = ({ boundingBoxes }) => {
                     }}
                 />
                 
-                {/* Bounding boxes border */}
                 <Layer
                     id="detection-boxes-line"
                     type="line"
@@ -49,7 +47,6 @@ const DetectionOverlay = ({ boundingBoxes }) => {
                     }}
                 />
 
-                {/* Labels */}
                 <Layer
                     id="detection-labels"
                     type="symbol"

@@ -36,6 +36,22 @@ const DetectionsGrid = () => {
     });
   };
 
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/detections/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setDetections(detections.filter(detection => detection.id !== id));
+        navigate(0);
+      } else {
+        console.error('Failed to delete detection');
+      }
+    } catch (error) {
+      console.error('Error deleting detection:', error);
+    }
+  };
+
   return (
     <div style={gridStyle}>
       <button onClick={() => navigate('/')} style={{
@@ -55,7 +71,6 @@ const DetectionsGrid = () => {
         {detections.map(detection => (
           <div 
             key={detection.id} 
-            onClick={() => handleCardClick(detection.latitude, detection.longitude)}
             style={{ 
               border: '1px solid #ccc',
               borderRadius: '8px',
@@ -87,6 +102,14 @@ const DetectionsGrid = () => {
               <p><strong>Confidence:</strong> {(detection.confidence * 100).toFixed(2)}%</p>
               <p><strong>Latitude:</strong> {detection.latitude}</p>
               <p><strong>Longitude:</strong> {detection.longitude}</p>
+              <button onClick={() => handleDelete(detection.id)} style={{
+                marginTop: '10px',
+                backgroundColor: 'red',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+              }}>Delete</button>
             </div>
           </div>
         ))}

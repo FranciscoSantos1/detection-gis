@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaSearch, FaEye, FaEyeSlash, FaSatelliteDish, FaMapMarkerAlt, FaGithub } from 'react-icons/fa';
 
 const MAPBOX_ACCESS_TOKEN = "pk.eyJ1IjoiZnJhbmNpc2Nvc2FudG9zMDUiLCJhIjoiY20yZW9lNHRiMDBqZjJrcXk0bDEzNHZxNCJ9.thoOGfrXKnbjSUaREZ-OSg";
 
 const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections }) => {
   const [searchInput, setSearchInput] = useState("");
+  const navigate = useNavigate();
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -23,6 +24,11 @@ const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections }) => {
     }
   };
 
+  const handleNavigateHome = () => {
+    navigate('/');
+    window.location.reload();
+  };
+
   return (
     <nav
       style={{
@@ -36,7 +42,10 @@ const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections }) => {
       }}
     >
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "1.5rem" }}>
+      <div 
+        style={{ display: "flex", alignItems: "center", marginBottom: "1.5rem", cursor: "pointer" }}
+        onClick={handleNavigateHome}
+      >
         <img src="/android-chrome-192x192.png" alt="Detection GIS Logo" style={{ width: "50px", height: "50px", marginRight: "1rem" }} />
         <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Detection GIS</h1>
       </div>

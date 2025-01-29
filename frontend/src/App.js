@@ -7,7 +7,6 @@ import DetectionsGrid from './components/DetectionGrid';
 const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Componente wrapper para o mapa que lida com o location
 const MapWithLocation = ({ viewState, setViewState, markers, boundingBoxes, mapStyle, detectionMarkers, showDetections }) => {
   const location = useLocation();
 
@@ -86,9 +85,9 @@ const App = () => {
             latOffset: -0.0000001
           },
           2: { // solar-panel
-            scale: 0.94,  // Reduzido para diminuir a largura
+            scale: 0.94,  
             lonOffset: 0.0000001,
-            latOffset: -0.0000004  // Ajustado para mover mais para baixo
+            latOffset: -0.0000004 
           }
         };
 
