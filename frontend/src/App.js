@@ -1,11 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import Navbar from './components/NavBar';
 import MapComponent from './components/Map';
 import DetectionsGrid from './components/DetectionGrid';
 
 const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Componente wrapper para o mapa que lida com o location
+const MapWithLocation = ({ viewState, setViewState, markers, boundingBoxes, mapStyle, detectionMarkers, showDetections }) => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.latitude && location.state?.longitude) {
+      setViewState({
+        latitude: location.state.latitude,
+        longitude: location.state.longitude,
+        zoom: location.state.zoom || 18
+      });
+    }
+  }, [location, setViewState]);
+
+  return (
+    <MapComponent
+      viewState={viewState}
+      setViewState={setViewState}
+      markers={markers}
+      boundingBoxes={boundingBoxes}
+      mapStyle={mapStyle}
+      detectionMarkers={detectionMarkers}
+      showDetections={showDetections}
+    />
+  );
+};
 
 const App = () => {
   const [viewState, setViewState] = useState({
@@ -189,13 +216,13 @@ const App = () => {
   };
 
   const toggleDetections = () => {
-    console.log('Alternando visibilidade das detecções. Novo estado:', !showDetections); // Log 6
+    console.log('Alternando visibilidade das detecções. Novo estado:', !showDetections);
     setShowDetections(!showDetections);
   };
 
   return (
     <Router>
-      <div style={{ display: 'flex' }}>
+      <div style={{ display: 'flex', overflow: 'hidden', height: '100vh' }}>
         <Navbar
           onSearch={handleSearch}
           onDetect={handleDetect}
@@ -205,15 +232,17 @@ const App = () => {
         <div style={{ flex: 1 }}>
           <Routes>
             <Route path="/detections" element={<DetectionsGrid />} />
-            <Route path="/" element={<MapComponent
-              viewState={viewState}
-              setViewState={setViewState}
-              markers={markers}
-              boundingBoxes={showDetections ? boundingBoxes : []}
-              mapStyle={mapStyle}
-              detectionMarkers={detectionMarkers}
-              showDetections={showDetections}
-            />} />
+            <Route path="/" element={
+              <MapWithLocation
+                viewState={viewState}
+                setViewState={setViewState}
+                markers={markers}
+                boundingBoxes={showDetections ? boundingBoxes : []}
+                mapStyle={mapStyle}
+                detectionMarkers={detectionMarkers}
+                showDetections={showDetections}
+              />
+            } />
           </Routes>
         </div>
       </div>
