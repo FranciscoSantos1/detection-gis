@@ -154,6 +154,7 @@ const App = () => {
       const markers = boxes.map(box => ({
         latitude: box.center.latitude,
         longitude: box.center.longitude,
+        name: box.name, // Ensure this is correctly set
         color: box.name === 'pool' ? 'red' : 'blue'
       }));
   
