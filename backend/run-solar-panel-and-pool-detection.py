@@ -7,36 +7,36 @@ import os
 
 # Model paths
 POOL_MODEL_PATH = "./pool-best.pt"
-SOLAR_PANEL_MODEL_PATH = "solar-panel-best.pt"
+SOLAR_PANEL_MODEL_PATH = "best-solar-panel.pt"
 
 # Load models
 pool_model = YOLO(POOL_MODEL_PATH)
 solar_panel_model = YOLO(SOLAR_PANEL_MODEL_PATH)
 
 def draw_detections(image_path, detections, output_path):
-    # Ler a imagem
+    # read image
     image = cv2.imread(image_path)
     
-    # Desenhar cada detecção
+    # draw bounding boxes
     for det in detections:
         bbox = det["bbox"]
         conf = det["confidence"]
         name = det["name"]
         
-        # Converter coordenadas para inteiros
+        # convert bbox to integers
         x1, y1, x2, y2 = map(int, bbox)
         
-        # Definir cor (vermelho para piscina, azul para painel solar)
+        # define colors
         color = (0, 0, 255) if name == "pool" else (255, 0, 0)
         
-        # Desenhar retângulo
+        # draw rectangle
         cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
         
-        # Adicionar texto
+        # Add label
         label = f"{name} {conf:.2f}"
         cv2.putText(image, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
     
-    # Salvar imagem com detecções
+    # save image with detections
     cv2.imwrite(output_path, image)
     return output_path
 
@@ -74,12 +74,12 @@ if __name__ == "__main__":
     # Combine results
     combined_detections = pool_detections + solar_panel_detections
 
-    # Criar o caminho para a imagem com detecções
+    # Create output path
     output_dir = os.path.dirname(image_path)
     base_name = os.path.splitext(os.path.basename(image_path))[0]
     output_path = os.path.join(output_dir, f"{base_name}_detections.jpg")
 
-    # Desenhar e salvar a imagem com detecções
+    # Draw detections on image and save
     detection_image_path = draw_detections(image_path, combined_detections, output_path)
 
     # Output results as JSON
