@@ -124,17 +124,17 @@ const convertPixelsToCoords = (detection) => {
     const offsetX = (IMAGE_WIDTH / 2) * 0.988;
     const offsetY = (IMAGE_HEIGHT / 2) * 0.988;
 
-    // Extrair as coordenadas da bbox do objeto detection
+    // Extract bounding box coordinates
     const bbox_xmin = detection.bbox[0];
     const bbox_xmax = detection.bbox[2];
     const bbox_ymin = detection.bbox[1];
     const bbox_ymax = detection.bbox[3];
 
-    // Calcular o centro em pixels
+    // Calculate center pixel coordinates
     const centerPixelX = (bbox_xmin + bbox_xmax) / 2;
     const centerPixelY = (bbox_ymin + bbox_ymax) / 2;
 
-    // Converter centro para coordenadas geográficas
+    // Convert pixel coordinates to latitude and longitude
     const centerLongitude = detection.longitude +
         (centerPixelX - offsetX) * lngPerPixel +
         LONGITUDE_OFFSET +
@@ -353,7 +353,7 @@ app.get('/detections', async (req, res) => {
     }
 });
 
-// Endpoint para buscar uma detecção específica
+// Endpoint for fetching a single detection by ID
 app.get('/detections/:id', async (req, res) => {
     try {
         const { id } = req.params;

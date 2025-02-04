@@ -47,8 +47,9 @@ const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections }) => {
         onClick={handleNavigateHome}
       >
         <img src="/android-chrome-192x192.png" alt="Detection GIS Logo" style={{ width: "50px", height: "50px", marginRight: "1rem" }} />
-        <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Detection GIS</h1>
+        <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Pool and Solar Panel Detection</h1>
       </div>
+      <span style={{ fontSize: "0.75rem", marginLeft: "0.5rem", color: "#888", marginBottom: "1.5rem"}}>Use only to detect pools and solar panels!</span>
 
       {/* Search Form */}
       <form onSubmit={handleSearch} style={{ marginBottom: "1.5rem" }}>

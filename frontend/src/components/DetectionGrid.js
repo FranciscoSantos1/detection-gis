@@ -3,6 +3,16 @@ import { useNavigate } from 'react-router-dom';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} - ${hours}:${minutes}`;
+};
+
 const DetectionsGrid = () => {
   const gridStyle = {
     backgroundColor: '#DDE6ED',
@@ -31,7 +41,7 @@ const DetectionsGrid = () => {
       state: { 
         latitude: latitude,
         longitude: longitude,
-        zoom: 18 // Zoom level adequado para ver a detecção
+        zoom: 18 // Zoom level for the map
       }
     });
   };
@@ -103,6 +113,7 @@ const DetectionsGrid = () => {
               <p><strong>Confidence:</strong> {(detection.confidence * 100).toFixed(2)}%</p>
               <p><strong>Latitude:</strong> {detection.latitude}</p>
               <p><strong>Longitude:</strong> {detection.longitude}</p>
+              <p><strong>Detected At:</strong> {formatDate(new Date(detection.created_at), 'dd/MM/yyyy - HH:mm')}</p>
               <button onClick={() => handleDelete(detection.id)} style={{
                 marginTop: '10px',
                 backgroundColor: 'red',
