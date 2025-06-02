@@ -5,8 +5,10 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 require('dotenv').config();
+const axios = require('axios');
 
 const app = express();
+app.use(express.json());
 app.use(cors());
 
 // Servir arquivos estáticos dos diretórios de imagens
@@ -394,6 +396,30 @@ app.delete('/detections/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+app.post('/ask-llm', async (req, res) => {
+    let { prompt } = req.body;
+    if (!prompt) {
+        return res.status(400).json({ error: 'Prompt is required.' });
+    }
+
+    // Add system context to the prompt
+    const systemPrompt = "You are an assistant to the detection-gis app. Your role is to help users with questions about detections of pools and solar panels based on satellite images. Respond clearly and concisely. (xx.a)";
+    const fullPrompt = `${systemPrompt}\nUser: ${prompt}`;
+
+    try {
+        // Use Ollama's API endpoint inside Docker
+        const response = await axios.post('http://ollama:11434/api/generate', {
+            model: "llama3", 
+            prompt: fullPrompt
+        });
+        res.json({ response: response.data.response });
+    } catch (error) {
+        console.error('Error communicating with Ollama:', error.message);
+        res.status(500).json({ error: 'LLM server error' });
+    }
+});
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

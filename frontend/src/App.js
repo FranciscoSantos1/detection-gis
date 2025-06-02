@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 import Navbar from './components/NavBar';
 import MapComponent from './components/Map';
 import DetectionsGrid from './components/DetectionGrid';
+import LLMChat from './components/LLMChat';
 
 const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -223,6 +224,7 @@ const App = () => {
           showDetections={showDetections}
         />
         <div style={{ flex: 1 }}>
+        <LLMChat />
           <Routes>
             <Route path="/detections" element={<DetectionsGrid />} />
             <Route path="/" element={

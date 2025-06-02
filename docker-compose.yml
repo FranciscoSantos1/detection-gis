@@ -22,7 +22,7 @@ services:
       - DATABASE_NAME=mydatabase
     depends_on:
       - db
-    
+
   db:
     image: postgres:latest
     container_name: postgres-db
@@ -34,7 +34,7 @@ services:
       POSTGRES_DB: mydatabase
     volumes:
       - ./data:/var/lib/postgresql/data
-  
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
@@ -44,3 +44,14 @@ services:
       - CHECK_EMAIL_DELIVERABILITY=False
       - PGADMIN_DEFAULT_EMAIL=mail@mail.com
       - PGADMIN_DEFAULT_PASSWORD=password
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "8001:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:
