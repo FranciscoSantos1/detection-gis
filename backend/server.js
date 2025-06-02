@@ -411,7 +411,8 @@ app.post('/ask-llm', async (req, res) => {
         // Use Ollama's API endpoint inside Docker
         const response = await axios.post('http://ollama:11434/api/generate', {
             model: "llama3", 
-            prompt: fullPrompt
+            prompt: fullPrompt,
+            stream: false,
         });
         res.json({ response: response.data.response });
     } catch (error) {

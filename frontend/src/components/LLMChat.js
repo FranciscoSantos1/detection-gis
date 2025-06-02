@@ -43,6 +43,7 @@ const LLMChat = () => {
       {response && (
         <div style={{ marginTop: 16, background: '#fff', padding: 12, borderRadius: 4, minHeight: 40 }}>
           <strong>Resposta:</strong>
+          console.log('Resposta do LLM:', response.data);
           <div>{response}</div>
         </div>
       )}
