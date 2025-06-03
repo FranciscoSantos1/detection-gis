@@ -74,10 +74,13 @@ if __name__ == "__main__":
     # Combine results
     combined_detections = pool_detections + solar_panel_detections
 
-    # Create output path
-    output_dir = os.path.dirname(image_path)
+    # --- FIX STARTS HERE ---
+    # Save annotated image in annotated_images directory
+    annotated_dir = os.path.join(os.path.dirname(image_path), '..', 'annotated_images')
+    os.makedirs(annotated_dir, exist_ok=True)
     base_name = os.path.splitext(os.path.basename(image_path))[0]
-    output_path = os.path.join(output_dir, f"{base_name}_detections.jpg")
+    output_path = os.path.join(annotated_dir, f"{base_name}_detections.jpg")
+    # --- FIX ENDS HERE ---
 
     # Draw detections on image and save
     detection_image_path = draw_detections(image_path, combined_detections, output_path)
@@ -89,7 +92,7 @@ if __name__ == "__main__":
             "latitude": latitude,
             "longitude": longitude
         },
-        "detection_image": output_path
+        "detection_image": detection_image_path
     }
 
     print(json.dumps(output))

@@ -244,7 +244,7 @@ const App = () => {
                 }}
                 aria-label="Fechar chat"
               >×</button>
-              <LLMChat />
+              <LLMChat viewState={viewState} /> {}
             </div>
           )}
           <Routes>

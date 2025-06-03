@@ -408,29 +408,75 @@ app.get('/annotated_images_list', (req, res) => {
 });
 
 app.post('/ask-llm', upload.single('image'), async (req, res) => {
-    let { prompt } = req.body;
-    let imageBase64 = null;
-
-    if (req.file) {
-        imageBase64 = fs.readFileSync(req.file.path, { encoding: 'base64' });
-    }
-
+    let prompt = req.body.prompt;
+    
     if (!prompt) {
         return res.status(400).json({ error: 'Prompt is required.' });
     }
 
-    const systemPrompt = "You are an assistant to the detection-gis app. Your role is to help users with questions about detections of pools and solar panels based on satellite images. Respond clearly and concisely. (xx.a)";
-    const fullPrompt = `${systemPrompt}\nUser: ${prompt}`;
+    let latestDetection = null;
+    try {
+        const result = await pool.query(`
+            SELECT * FROM detections
+            WHERE annotated_image_path IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT 1
+        `);
+        latestDetection = result.rows[0];
+    } catch (err) {
+        console.error('Error fetching latest detection for LLM:', err.message);
+    }
 
+    if (!latestDetection || !latestDetection.annotated_image_path) {
+        return res.status(404).json({ error: 'No annotated image found.' });
+    }
+
+    // 2. Read the annotated image as base64
+    let imageBase64 = null;
+    try {
+        imageBase64 = fs.readFileSync(
+            path.join(__dirname, latestDetection.annotated_image_path),
+            { encoding: 'base64' }
+        );
+    } catch (err) {
+        console.error('Error reading annotated image for LLM:', err.message);
+        return res.status(500).json({ error: 'Could not read annotated image.' });
+    }
+
+    // 3. Get all detections for this image
+    let detections = [];
+    try {
+        const result = await pool.query(`
+            SELECT class, name, confidence, center_latitude, center_longitude
+            FROM detections
+            WHERE annotated_image_path = $1
+            ORDER BY created_at DESC
+        `, [latestDetection.annotated_image_path]);
+        detections = result.rows;
+    } catch (err) {
+        console.error('Error fetching detections for LLM:', err.message);
+    }
+
+    // 4. Format detections for the LLM
+    const detectionsText = detections.length
+        ? detections.map((d, i) =>
+            `Detection ${i + 1}: ${d.name} (class ${d.class}), confidence ${d.confidence.toFixed(2)}, coordinates [${d.center_latitude}, ${d.center_longitude}]`
+          ).join('\n')
+        : 'No detections found for this image.';
+
+    const systemPrompt = `You are an assistant to the detection-gis app. Your role is to help users with questions about detections of pools and solar panels based on satellite images. Respond clearly and concisely.
+Context: The latest annotated image is being sent. Here are the detections for this image:
+${detectionsText}
+User: ${prompt}`;
+
+    // 5. Send to Ollama
     try {
         const payload = {
-            model: "llava", 
-            prompt: fullPrompt,
-            stream: false
+            model: "llava",
+            prompt: systemPrompt,
+            stream: false,
+            images: [imageBase64]
         };
-        if (imageBase64) {
-            payload.images = [imageBase64];
-        }
         const response = await axios.post('http://ollama:11434/api/generate', payload);
         res.json({ response: response.data.response });
     } catch (error) {
