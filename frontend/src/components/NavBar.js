@@ -4,7 +4,7 @@ import { FaSearch, FaEye, FaEyeSlash, FaSatelliteDish, FaMapMarkerAlt, FaGithub 
 
 const MAPBOX_ACCESS_TOKEN = "pk.eyJ1IjoiZnJhbmNpc2Nvc2FudG9zMDUiLCJhIjoiY20yZW9lNHRiMDBqZjJrcXk0bDEzNHZxNCJ9.thoOGfrXKnbjSUaREZ-OSg";
 
-const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections }) => {
+const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections, onToggleLLMChat }) => {
   const [searchInput, setSearchInput] = useState("");
   const navigate = useNavigate();
 
@@ -173,6 +173,25 @@ const Navbar = ({ onSearch, onDetect, onToggleDetections, showDetections }) => {
           </button>
         </Link>
       </div>
+      
+      <button
+        onClick={onToggleLLMChat}
+        style={{
+          width: "100%",
+          padding: "0.75rem",
+          backgroundColor: "#6f42c1",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "background-color 0.2s",
+        }}
+      >
+        💬 LLM Chat
+      </button>
 
       {/* Footer */}
       <div style={{

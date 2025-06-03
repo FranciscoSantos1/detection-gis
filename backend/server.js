@@ -396,24 +396,42 @@ app.delete('/detections/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+app.get('/annotated_images_list', (req, res) => {
+    fs.readdir('annotated_images', (err, files) => {
+        if (err) {
+            return res.status(500).json({ error: 'Could not list images' });
+        }
+        // Only return image files (jpg, png, etc.)
+        const images = files.filter(f => /\.(jpg|jpeg|png)$/i.test(f));
+        res.json(images);
+    });
+});
 
-app.post('/ask-llm', async (req, res) => {
+app.post('/ask-llm', upload.single('image'), async (req, res) => {
     let { prompt } = req.body;
+    let imageBase64 = null;
+
+    if (req.file) {
+        imageBase64 = fs.readFileSync(req.file.path, { encoding: 'base64' });
+    }
+
     if (!prompt) {
         return res.status(400).json({ error: 'Prompt is required.' });
     }
 
-    // Add system context to the prompt
     const systemPrompt = "You are an assistant to the detection-gis app. Your role is to help users with questions about detections of pools and solar panels based on satellite images. Respond clearly and concisely. (xx.a)";
     const fullPrompt = `${systemPrompt}\nUser: ${prompt}`;
 
     try {
-        // Use Ollama's API endpoint inside Docker
-        const response = await axios.post('http://ollama:11434/api/generate', {
-            model: "llama3", 
+        const payload = {
+            model: "llava", 
             prompt: fullPrompt,
-            stream: false,
-        });
+            stream: false
+        };
+        if (imageBase64) {
+            payload.images = [imageBase64];
+        }
+        const response = await axios.post('http://ollama:11434/api/generate', payload);
         res.json({ response: response.data.response });
     } catch (error) {
         console.error('Error communicating with Ollama:', error.message);
