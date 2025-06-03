@@ -4,3 +4,4 @@ runs/
 data/
 .venv/
 venv/
+backend/annotated_images/
