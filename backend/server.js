@@ -408,79 +408,126 @@ app.get('/annotated_images_list', (req, res) => {
 });
 
 app.post('/ask-llm', upload.single('image'), async (req, res) => {
-    let prompt = req.body.prompt;
-    
-    if (!prompt) {
+    const userPrompt = req.body.prompt;
+    if (!userPrompt) {
         return res.status(400).json({ error: 'Prompt is required.' });
     }
 
-    let latestDetection = null;
+    /* ------------------------------------------------------------------
+     * 1. Obter a deteção anotada mais recente
+     * ----------------------------------------------------------------*/
+    let latestDetection;
     try {
-        const result = await pool.query(`
-            SELECT * FROM detections
-            WHERE annotated_image_path IS NOT NULL
-            ORDER BY created_at DESC
-            LIMIT 1
-        `);
-        latestDetection = result.rows[0];
+        const { rows } = await pool.query(
+            `SELECT * FROM detections
+         WHERE annotated_image_path IS NOT NULL
+         ORDER BY created_at DESC
+         LIMIT 1`);
+        latestDetection = rows[0];
     } catch (err) {
-        console.error('Error fetching latest detection for LLM:', err.message);
+        console.error('DB error (latest detection):', err.message);
+        return res.status(500).json({ error: 'Database error.' });
     }
 
-    if (!latestDetection || !latestDetection.annotated_image_path) {
+    if (!latestDetection) {
         return res.status(404).json({ error: 'No annotated image found.' });
     }
 
-    // 2. Read the annotated image as base64
-    let imageBase64 = null;
+    /* ------------------------------------------------------------------
+     * 2. Ler a imagem anotada em base64
+     * ----------------------------------------------------------------*/
+    let imageBase64;
     try {
-        imageBase64 = fs.readFileSync(
-            path.join(__dirname, latestDetection.annotated_image_path),
-            { encoding: 'base64' }
-        );
+        const imgPath = path.join(__dirname, latestDetection.annotated_image_path);
+        imageBase64 = fs.readFileSync(imgPath, { encoding: 'base64' });
     } catch (err) {
-        console.error('Error reading annotated image for LLM:', err.message);
+        console.error('FS error (read image):', err.message);
         return res.status(500).json({ error: 'Could not read annotated image.' });
     }
 
-    // 3. Get all detections for this image
+    /* ------------------------------------------------------------------
+     * 3. Buscar todas as deteções associadas à imagem
+     * ----------------------------------------------------------------*/
     let detections = [];
     try {
-        const result = await pool.query(`
-            SELECT class, name, confidence, center_latitude, center_longitude
-            FROM detections
-            WHERE annotated_image_path = $1
-            ORDER BY created_at DESC
-        `, [latestDetection.annotated_image_path]);
-        detections = result.rows;
+        const { rows } = await pool.query(
+            `SELECT class, name, confidence, center_latitude, center_longitude
+         FROM detections
+         WHERE annotated_image_path = $1
+         ORDER BY created_at DESC`,
+            [latestDetection.annotated_image_path]
+        );
+        detections = rows;
     } catch (err) {
-        console.error('Error fetching detections for LLM:', err.message);
+        console.error('DB error (detections):', err.message);
     }
 
-    // 4. Format detections for the LLM
-    const detectionsText = detections.length
-        ? detections.map((d, i) =>
+    /* ------------------------------------------------------------------
+     * 4. Construir texto de contexto + sumário dinâmico
+     * ----------------------------------------------------------------*/
+    const detectionsText = detections.length ?
+        detections.map((d, i) =>
             `Detection ${i + 1}: ${d.name} (class ${d.class}), confidence ${d.confidence.toFixed(2)}, coordinates [${d.center_latitude}, ${d.center_longitude}]`
-          ).join('\n')
-        : 'No detections found for this image.';
+        ).join('\n') : 'No detections found for this image.';
 
-    const systemPrompt = `You are an assistant to the detection-gis app. Your role is to help users with questions about detections of pools and solar panels based on satellite images. Respond clearly and concisely.
-Context: The latest annotated image is being sent. Here are the detections for this image:
+    // Contagem de pools e painéis solares
+    const counts = detections.reduce((acc, d) => {
+        acc[d.name] = (acc[d.name] || 0) + 1;
+        return acc;
+    }, {});
+
+    const poolCount = counts['pool'] || 0;
+    const solarCount = counts['solar-panel'] || 0;
+
+    const summaryText = `Summary:\n${poolCount} pool${poolCount === 1 ? '' : 's'} and ${solarCount} solar panel${solarCount === 1 ? '' : 's'} were detected.`;
+
+    /* ------------------------------------------------------------------
+     * 5. Montar o prompt final
+     * ----------------------------------------------------------------*/
+    const systemPrompt = `You are an assistant for a satellite detection system.
+Your task is to answer the user's question based on detected objects (e.g., pools, solar panels), but only mention objects relevant to the question. Do not include information about unrelated object types unless explicitly asked.
+
+Always format your answer like this:
+
+---
+Here are the detection results for the requested objects based on the latest annotated satellite image:
+
+<one entry per detection, like>
+Pool 1:
+- Location: ...
+- Class: ...
+- Confidence: ...
+- Coordinates: [...]
+
+${summaryText}
+
+These objects are visually marked as rectangles in the image for easy identification.
+The coordinates provided refer to the center point of each detected object.
+---
+
+Context:
 ${detectionsText}
-User: ${prompt}`;
 
-    // 5. Send to Ollama
+User question:
+${userPrompt}`.trim();
+
+    /* ------------------------------------------------------------------
+     * 6. Chamar o modelo LLM (Ollama)
+     * ----------------------------------------------------------------*/
     try {
         const payload = {
-            model: "llava",
+            model: 'llava',
             prompt: systemPrompt,
+            images: [imageBase64],
             stream: false,
-            images: [imageBase64]
+            temperature: 0.2,
+            max_tokens: 512,
         };
-        const response = await axios.post('http://ollama:11434/api/generate', payload);
-        res.json({ response: response.data.response });
-    } catch (error) {
-        console.error('Error communicating with Ollama:', error.message);
+
+        const { data } = await axios.post('http://ollama:11434/api/generate', payload);
+        res.json({ response: data.response });
+    } catch (err) {
+        console.error('LLM error:', err.message);
         res.status(500).json({ error: 'LLM server error' });
     }
 });
